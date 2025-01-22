@@ -1,0 +1,145 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Virtus Capital</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/web3/1.10.0/web3.min.js"></script>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #ffffff;
+            color: #333333;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        header {
+            width: 100%;
+            padding: 2rem 0;
+            text-align: center;
+            border-bottom: 1px solid #eaeaea;
+        }
+        header img {
+            width: 150px;
+            height: auto;
+        }
+        header h1 {
+            font-size: 1.8rem;
+            font-weight: normal;
+            margin-top: 0.5rem;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            color: #000;
+        }
+        main {
+            max-width: 800px;
+            width: 100%;
+            padding: 2rem;
+        }
+        .wallet-info {
+            margin: 2rem 0;
+            text-align: center;
+        }
+        .wallet-info button {
+            background-color: #000;
+            color: #fff;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            font-size: 1rem;
+            cursor: pointer;
+            border-radius: 5px;
+            transition: background-color 0.3s;
+        }
+        .wallet-info button:hover {
+            background-color: #444;
+        }
+        #chart-container {
+            margin: 2rem auto;
+        }
+        canvas {
+            max-width: 100%;
+        }
+        #pnl {
+            text-align: center;
+            font-size: 1.2rem;
+            margin-top: 1rem;
+            color: #000;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <img src="logo.png" alt="Virtus Capital Logo">
+        <h1>Virtus Capital</h1>
+    </header>
+    <main>
+        <h2 style="text-align: center;">Portfolio Overview</h2>
+        <div class="wallet-info">
+            <button id="connectWallet">Connect Phantom Wallet</button>
+            <p id="walletAddress">Wallet Address: Not Connected</p>
+        </div>
+        <div id="chart-container">
+            <canvas id="investmentChart"></canvas>
+        </div>
+        <h3 style="text-align: center;">Profit & Loss</h3>
+        <p id="pnl">PnL: Calculating...</p>
+    </main>
+    <script>
+        let walletAddress = null;
+        let investmentData = [
+            { date: '2025-01-01', value: 1000 },
+            { date: '2025-02-01', value: 1200 },
+            { date: '2025-03-01', value: 900 },
+            { date: '2025-04-01', value: 1500 }
+        ];
+
+        document.getElementById('connectWallet').addEventListener('click', async () => {
+            if (window.solana && window.solana.isPhantom) {
+                try {
+                    const response = await window.solana.connect();
+                    walletAddress = response.publicKey.toString();
+                    document.getElementById('walletAddress').innerText = `Wallet Address: ${walletAddress}`;
+                } catch (err) {
+                    alert('Wallet connection failed');
+                }
+            } else {
+                alert('Phantom Wallet not found. Please install it.');
+            }
+        });
+
+        const dates = investmentData.map(data => data.date);
+        const values = investmentData.map(data => data.value);
+
+        const ctx = document.getElementById('investmentChart').getContext('2d');
+        new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: dates,
+                datasets: [{
+                    label: 'Investment Value',
+                    data: values,
+                    borderColor: 'rgba(0, 0, 0, 1)',
+                    borderWidth: 2,
+                    fill: false
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: {
+                        display: true
+                    }
+                }
+            }
+        });
+
+        const pnl = ((values[values.length - 1] - values[0]) / values[0]) * 100;
+        document.getElementById('pnl').innerText = `PnL: ${pnl.toFixed(2)}%`;
+    </script>
+</body>
+</html>
