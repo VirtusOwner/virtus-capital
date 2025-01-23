@@ -1,76 +1,61 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Virtus Capital</title>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/web3/1.10.0/web3.min.js"></script>
     <style>
         body {
-            font-family: 'Arial', sans-serif;
+            font-family: Arial, sans-serif;
             margin: 0;
             padding: 0;
-            background-color: #ffffff;
-            color: #333333;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
+            background-color: #f4f4f9;
+            color: #333;
         }
         header {
-            width: 100%;
-            padding: 2rem 0;
+            background-color: #1f2937;
+            color: white;
+            padding: 20px;
             text-align: center;
-            border-bottom: 1px solid #eaeaea;
         }
         header img {
-            width: 150px;
-            height: auto;
-        }
-        header h1 {
-            font-size: 1.8rem;
-            font-weight: normal;
-            margin-top: 0.5rem;
-            letter-spacing: 2px;
-            text-transform: uppercase;
-            color: #000;
+            max-width: 150px;
+            display: block;
+            margin: 0 auto 10px;
         }
         main {
+            padding: 20px;
             max-width: 800px;
-            width: 100%;
-            padding: 2rem;
+            margin: 0 auto;
         }
-        .wallet-info {
-            margin: 2rem 0;
+        .chart-container {
+            position: relative;
+            height: 400px;
+            margin: 20px 0;
+        }
+        .stats {
+            display: flex;
+            justify-content: space-around;
+            margin: 20px 0;
+        }
+        .stats div {
             text-align: center;
         }
-        .wallet-info button {
-            background-color: #000;
-            color: #fff;
-            border: none;
-            padding: 0.75rem 1.5rem;
-            font-size: 1rem;
-            cursor: pointer;
-            border-radius: 5px;
-            transition: background-color 0.3s;
-        }
-        .wallet-info button:hover {
-            background-color: #444;
-        }
-        #chart-container {
-            margin: 2rem auto;
-        }
-        canvas {
-            max-width: 100%;
-        }
-        #pnl {
+        footer {
             text-align: center;
-            font-size: 1.2rem;
-            margin-top: 1rem;
-            color: #000;
+            padding: 10px;
+            background-color: #1f2937;
+            color: white;
+            margin-top: 20px;
+        }
+        .blinking-point {
+            animation: blink 1s infinite;
+        }
+        @keyframes blink {
+            50% { opacity: 0; }
         }
     </style>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
     <header>
@@ -78,68 +63,118 @@
         <h1>Virtus Capital</h1>
     </header>
     <main>
-        <h2 style="text-align: center;">Portfolio Overview</h2>
-        <div class="wallet-info">
-            <button id="connectWallet">Connect Phantom Wallet</button>
-            <p id="walletAddress">Wallet Address: Not Connected</p>
+        <h2>Account Balance</h2>
+        <div class="chart-container">
+            <canvas id="balanceChart"></canvas>
         </div>
-        <div id="chart-container">
-            <canvas id="investmentChart"></canvas>
+        <div class="stats">
+            <div>
+                <h3>Current Balance</h3>
+                <p id="currentBalance">Loading...</p>
+            </div>
+            <div>
+                <h3>Profit/Loss (%)</h3>
+                <p id="profitLoss">Loading...</p>
+            </div>
         </div>
-        <h3 style="text-align: center;">Profit & Loss</h3>
-        <p id="pnl">PnL: Calculating...</p>
     </main>
+    <footer>
+        <p>&copy; 2025 Virtus Capital. All rights reserved.</p>
+    </footer>
     <script>
-        let walletAddress = null;
-        let investmentData = [
-            { date: '2025-01-01', value: 1000 },
-            { date: '2025-02-01', value: 1200 },
-            { date: '2025-03-01', value: 900 },
-            { date: '2025-04-01', value: 1500 }
-        ];
+        const WALLET_ADDRESS = "8iXjzm8FNtmvaYdSXzmpbWphhqyzdBvK8FkXbeDpW6Dm";
+        const balanceHistory = [];
+        const timestamps = [];
 
-        document.getElementById('connectWallet').addEventListener('click', async () => {
-            if (window.solana && window.solana.isPhantom) {
-                try {
-                    const response = await window.solana.connect();
-                    walletAddress = response.publicKey.toString();
-                    document.getElementById('walletAddress').innerText = `Wallet Address: ${walletAddress}`;
-                } catch (err) {
-                    alert('Wallet connection failed');
-                }
-            } else {
-                alert('Phantom Wallet not found. Please install it.');
+        async function fetchWalletBalance() {
+            try {
+                // Replace this API endpoint with a real one to fetch wallet balance
+                const response = await fetch(`https://api.example.com/wallet/${WALLET_ADDRESS}/balance`);
+                const data = await response.json();
+                return data.balance;
+            } catch (error) {
+                console.error("Error fetching wallet balance:", error);
+                return null;
             }
-        });
+        }
 
-        const dates = investmentData.map(data => data.date);
-        const values = investmentData.map(data => data.value);
+        function calculateProfitLoss(balanceHistory) {
+            if (balanceHistory.length < 2) return 0;
+            const initialBalance = balanceHistory[0];
+            const currentBalance = balanceHistory[balanceHistory.length - 1];
+            const profitLoss = ((currentBalance - initialBalance) / initialBalance) * 100;
+            return profitLoss.toFixed(2);
+        }
 
-        const ctx = document.getElementById('investmentChart').getContext('2d');
-        new Chart(ctx, {
+        function updateChart(chart, balance, timestamp) {
+            chart.data.labels.push(timestamp);
+            chart.data.datasets[0].data.push(balance);
+
+            const dataset = chart.data.datasets[0];
+            const pointCount = dataset.data.length;
+            chart.data.datasets[0].pointBackgroundColor = Array(pointCount).fill("rgba(31, 41, 55, 0.8)");
+
+            // Make the latest point blink with a green animation
+            chart.data.datasets[0].pointBackgroundColor[pointCount - 1] = "rgba(50, 205, 50, 1)";
+
+            chart.update();
+        }
+
+        async function updateData() {
+            const balance = await fetchWalletBalance();
+            if (balance !== null) {
+                const timestamp = new Date().toLocaleTimeString();
+                balanceHistory.push(balance);
+                timestamps.push(timestamp);
+
+                document.getElementById('currentBalance').textContent = `$${balance.toFixed(2)}`;
+                document.getElementById('profitLoss').textContent = `${calculateProfitLoss(balanceHistory)}%`;
+
+                updateChart(balanceChart, balance, timestamp);
+            }
+        }
+
+        const ctx = document.getElementById('balanceChart').getContext('2d');
+        const balanceChart = new Chart(ctx, {
             type: 'line',
             data: {
-                labels: dates,
+                labels: timestamps,
                 datasets: [{
-                    label: 'Investment Value',
-                    data: values,
-                    borderColor: 'rgba(0, 0, 0, 1)',
-                    borderWidth: 2,
-                    fill: false
+                    label: 'Balance Over Time',
+                    data: balanceHistory,
+                    borderColor: '#1f2937',
+                    backgroundColor: 'rgba(31, 41, 55, 0.2)',
+                    tension: 0.3,
+                    pointBackgroundColor: [],
+                    pointRadius: 5,
                 }]
             },
             options: {
                 responsive: true,
                 plugins: {
                     legend: {
-                        display: true
+                        display: false
+                    }
+                },
+                scales: {
+                    x: {
+                        title: {
+                            display: true,
+                            text: 'Time'
+                        }
+                    },
+                    y: {
+                        title: {
+                            display: true,
+                            text: 'Balance (USD)'
+                        }
                     }
                 }
             }
         });
 
-        const pnl = ((values[values.length - 1] - values[0]) / values[0]) * 100;
-        document.getElementById('pnl').innerText = `PnL: ${pnl.toFixed(2)}%`;
+        updateData(); // Initial data fetch
+        setInterval(updateData, 3600000); // Fetch data every hour
     </script>
 </body>
 </html>
