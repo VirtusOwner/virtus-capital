@@ -87,6 +87,49 @@
         const COINGECKO_API = "https://api.coingecko.com/api/v3/simple/token_price/solana?contract_addresses=";
 
         const INITIAL_INVESTMENT = 1459; // USD
+        const balanceHistory = [];
+        const timestamps = [];
+
+        const ctx = document.getElementById("balanceChart").getContext("2d");
+        const balanceChart = new Chart(ctx, {
+            type: "line",
+            data: {
+                labels: timestamps,
+                datasets: [
+                    {
+                        label: "Wallet Balance (USD)",
+                        data: balanceHistory,
+                        borderColor: "#1f2937",
+                        backgroundColor: "rgba(31, 41, 55, 0.2)",
+                        tension: 0.3,
+                        pointBackgroundColor: [],
+                        pointRadius: 5,
+                    },
+                ],
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: {
+                        display: true,
+                    },
+                },
+                scales: {
+                    x: {
+                        title: {
+                            display: true,
+                            text: "Time",
+                        },
+                    },
+                    y: {
+                        title: {
+                            display: true,
+                            text: "Balance (USD)",
+                        },
+                    },
+                },
+            },
+        });
 
         async function fetchTokenAccounts() {
             try {
@@ -165,14 +208,30 @@
             return profitLoss.toFixed(2);
         }
 
+        async function updateChart(balance, timestamp) {
+            balanceHistory.push(balance);
+            timestamps.push(timestamp);
+
+            const pointCount = balanceHistory.length;
+            balanceChart.data.labels = timestamps;
+            balanceChart.data.datasets[0].data = balanceHistory;
+
+            balanceChart.data.datasets[0].pointBackgroundColor = Array(pointCount).fill(
+                "rgba(31, 41, 55, 0.8)"
+            );
+            balanceChart.data.datasets[0].pointBackgroundColor[pointCount - 1] = "rgba(50, 205, 50, 1)";
+            balanceChart.update();
+        }
+
         async function updateData() {
             const balanceInUSD = await fetchWalletBalanceInUSD();
             if (balanceInUSD !== null) {
                 const timestamp = new Date().toLocaleTimeString();
 
-                // Update DOM
                 document.getElementById("currentBalance").textContent = `$${balanceInUSD.toFixed(2)}`;
                 document.getElementById("profitLoss").textContent = `${calculateProfitLoss(balanceInUSD)}%`;
+
+                await updateChart(balanceInUSD, timestamp);
             }
         }
 
