@@ -83,16 +83,26 @@
     </footer>
     <script>
         const WALLET_ADDRESS = "8iXjzm8FNtmvaYdSXzmpbWphhqyzdBvK8FkXbeDpW6Dm";
-        const API_ENDPOINT = "https://api.quicknode.com/v1/solana-wallet";
-        const API_KEY = "uC9xDnE4WH6jiwzdczX4omVFQbGTqgtH"; // Replace with your actual API key
+        const API_ENDPOINT = "https://solana-mainnet.g.alchemy.com/v2/uC9xDnE4WH6jiwzdczX4omVFQbGTqgtH";
         const balanceHistory = [];
         const timestamps = [];
 
         async function fetchWalletBalance() {
             try {
-                const response = await fetch(`${API_ENDPOINT}/${WALLET_ADDRESS}?apiKey=${API_KEY}`);
+                const response = await fetch(API_ENDPOINT, {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({
+                        jsonrpc: "2.0",
+                        id: 1,
+                        method: "getBalance",
+                        params: [WALLET_ADDRESS],
+                    }),
+                });
                 const data = await response.json();
-                return data.balance / 1e9; // Convert lamports to SOL
+                return data.result.value / 1e9; // Convert lamports to SOL
             } catch (error) {
                 console.error("Error fetching wallet balance:", error);
                 return null;
