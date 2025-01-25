@@ -84,13 +84,11 @@
     <script>
         const WALLET_ADDRESS = "8iXjzm8FNtmvaYdSXzmpbWphhqyzdBvK8FkXbeDpW6Dm";
         const API_ENDPOINT = "https://solana-mainnet.g.alchemy.com/v2/uC9xDnE4WH6jiwzdczX4omVFQbGTqgtH";
+        const COINGECKO_API = "https://api.coingecko.com/api/v3/simple/token_price/solana?contract_addresses=";
+
         const INITIAL_INVESTMENT = 1459; // USD
-        const SOL_TO_USD_API = "https://api.coingecko.com/api/v3/simple/price?ids=solana&vs_currencies=usd";
 
-        const balanceHistory = [];
-        const timestamps = [];
-
-        async function fetchWalletBalanceInSOL() {
+        async function fetchTokenAccounts() {
             try {
                 const response = await fetch(API_ENDPOINT, {
                     method: "POST",
@@ -100,40 +98,66 @@
                     body: JSON.stringify({
                         jsonrpc: "2.0",
                         id: 1,
-                        method: "getBalance",
-                        params: [WALLET_ADDRESS],
+                        method: "getTokenAccountsByOwner",
+                        params: [
+                            WALLET_ADDRESS,
+                            { programId: "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA" },
+                            { encoding: "jsonParsed" },
+                        ],
                     }),
                 });
                 const data = await response.json();
-                console.log("Balance in SOL:", data.result.value / 1e9);
-                return data.result.value / 1e9; // Convert lamports to SOL
+                return data.result.value;
             } catch (error) {
-                console.error("Error fetching wallet balance:", error);
-                return null;
+                console.error("Error fetching token accounts:", error);
+                return [];
             }
         }
 
-        async function fetchSOLPriceInUSD() {
+        async function fetchTokenPrices(mintAddresses) {
             try {
-                const response = await fetch(SOL_TO_USD_API);
+                const response = await fetch(
+                    `${COINGECKO_API}${mintAddresses.join(",")}&vs_currencies=usd`
+                );
                 const data = await response.json();
-                console.log("SOL Price in USD:", data.solana.usd);
-                return data.solana.usd;
+                return data;
             } catch (error) {
-                console.error("Error fetching SOL price:", error);
-                return null;
+                console.error("Error fetching token prices:", error);
+                return {};
             }
         }
 
         async function fetchWalletBalanceInUSD() {
-            const balanceInSOL = await fetchWalletBalanceInSOL();
-            const solPriceInUSD = await fetchSOLPriceInUSD();
+            const tokenAccounts = await fetchTokenAccounts();
+            if (!tokenAccounts || tokenAccounts.length === 0) return 0;
 
-            if (balanceInSOL !== null && solPriceInUSD !== null) {
-                return balanceInSOL * solPriceInUSD;
-            } else {
-                return null;
+            const balances = [];
+            const mintAddresses = [];
+
+            // Extract balances and mint addresses
+            for (const account of tokenAccounts) {
+                const tokenInfo = account.account.data.parsed.info;
+                const balance = tokenInfo.tokenAmount.uiAmount;
+                const mintAddress = tokenInfo.mint;
+
+                if (balance > 0) {
+                    balances.push({ mint: mintAddress, balance });
+                    mintAddresses.push(mintAddress);
+                }
             }
+
+            // Fetch token prices
+            const prices = await fetchTokenPrices(mintAddresses);
+
+            // Calculate total balance in USD
+            let totalBalance = 0;
+            for (const { mint, balance } of balances) {
+                if (prices[mint] && prices[mint].usd) {
+                    totalBalance += balance * prices[mint].usd;
+                }
+            }
+
+            return totalBalance;
         }
 
         function calculateProfitLoss(currentBalance) {
@@ -141,75 +165,19 @@
             return profitLoss.toFixed(2);
         }
 
-        function updateChart(chart, balance, timestamp) {
-            chart.data.labels.push(timestamp);
-            chart.data.datasets[0].data.push(balance);
-
-            const dataset = chart.data.datasets[0];
-            const pointCount = dataset.data.length;
-            chart.data.datasets[0].pointBackgroundColor = Array(pointCount).fill("rgba(31, 41, 55, 0.8)");
-
-            // Make the latest point blink with a green animation
-            chart.data.datasets[0].pointBackgroundColor[pointCount - 1] = "rgba(50, 205, 50, 1)";
-
-            chart.update();
-        }
-
         async function updateData() {
             const balanceInUSD = await fetchWalletBalanceInUSD();
             if (balanceInUSD !== null) {
                 const timestamp = new Date().toLocaleTimeString();
-                balanceHistory.push(balanceInUSD);
-                timestamps.push(timestamp);
 
-                document.getElementById('currentBalance').textContent = `$${balanceInUSD.toFixed(2)}`;
-                document.getElementById('profitLoss').textContent = `${calculateProfitLoss(balanceInUSD)}%`;
-
-                updateChart(balanceChart, balanceInUSD, timestamp);
+                // Update DOM
+                document.getElementById("currentBalance").textContent = `$${balanceInUSD.toFixed(2)}`;
+                document.getElementById("profitLoss").textContent = `${calculateProfitLoss(balanceInUSD)}%`;
             }
         }
 
-        const ctx = document.getElementById('balanceChart').getContext('2d');
-        const balanceChart = new Chart(ctx, {
-            type: 'line',
-            data: {
-                labels: timestamps,
-                datasets: [{
-                    label: 'Balance Over Time (USD)',
-                    data: balanceHistory,
-                    borderColor: '#1f2937',
-                    backgroundColor: 'rgba(31, 41, 55, 0.2)',
-                    tension: 0.3,
-                    pointBackgroundColor: [],
-                    pointRadius: 5,
-                }]
-            },
-            options: {
-                responsive: true,
-                plugins: {
-                    legend: {
-                        display: false
-                    }
-                },
-                scales: {
-                    x: {
-                        title: {
-                            display: true,
-                            text: 'Time'
-                        }
-                    },
-                    y: {
-                        title: {
-                            display: true,
-                            text: 'Balance (USD)'
-                        }
-                    }
-                }
-            }
-        });
-
-        updateData(); // Initial data fetch
-        setInterval(updateData, 300000); // Fetch data every 5 minutes
+        updateData(); // Initial fetch
+        setInterval(updateData, 300000); // Update every 5 minutes
     </script>
 </body>
 </html>
