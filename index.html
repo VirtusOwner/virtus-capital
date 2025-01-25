@@ -150,7 +150,13 @@
                     }),
                 });
                 const data = await response.json();
-                return data.result.value;
+                console.log("Full Token Accounts Response:", data);
+                if (data.result && data.result.value) {
+                    return data.result.value;
+                } else {
+                    console.error("Unexpected response structure:", data);
+                    return [];
+                }
             } catch (error) {
                 console.error("Error fetching token accounts:", error);
                 return [];
@@ -159,10 +165,12 @@
 
         async function fetchTokenPrices(mintAddresses) {
             try {
+                const sanitizedAddresses = mintAddresses.map(addr => addr.trim());
                 const response = await fetch(
-                    `${COINGECKO_API}${mintAddresses.join(",")}&vs_currencies=usd`
+                    `${COINGECKO_API}${sanitizedAddresses.join(",")}&vs_currencies=usd`
                 );
                 const data = await response.json();
+                console.log("Fetched Token Prices:", data);
                 return data;
             } catch (error) {
                 console.error("Error fetching token prices:", error);
@@ -172,6 +180,7 @@
 
         async function fetchWalletBalanceInUSD() {
             const tokenAccounts = await fetchTokenAccounts();
+            console.log("Token Accounts:", tokenAccounts); // Debugging token accounts
             if (!tokenAccounts || tokenAccounts.length === 0) return 0;
 
             const balances = [];
@@ -188,15 +197,19 @@
                     mintAddresses.push(mintAddress);
                 }
             }
+            console.log("Mint Addresses:", mintAddresses); // Debugging mint addresses
 
             // Fetch token prices
             const prices = await fetchTokenPrices(mintAddresses);
+            console.log("Token Prices:", prices); // Debugging prices
 
             // Calculate total balance in USD
             let totalBalance = 0;
             for (const { mint, balance } of balances) {
                 if (prices[mint] && prices[mint].usd) {
                     totalBalance += balance * prices[mint].usd;
+                } else {
+                    console.warn(`Price missing for token: ${mint}`);
                 }
             }
 
