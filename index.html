@@ -83,15 +83,16 @@
     </footer>
     <script>
         const WALLET_ADDRESS = "8iXjzm8FNtmvaYdSXzmpbWphhqyzdBvK8FkXbeDpW6Dm";
+        const API_ENDPOINT = "https://api.quicknode.com/v1/solana-wallet";
+        const API_KEY = "uC9xDnE4WH6jiwzdczX4omVFQbGTqgtH"; // Replace with your actual API key
         const balanceHistory = [];
         const timestamps = [];
 
         async function fetchWalletBalance() {
             try {
-                // Replace this API endpoint with a real one to fetch wallet balance
-                const response = await fetch(`https://api.example.com/wallet/${WALLET_ADDRESS}/balance`);
+                const response = await fetch(`${API_ENDPOINT}/${WALLET_ADDRESS}?apiKey=${API_KEY}`);
                 const data = await response.json();
-                return data.balance;
+                return data.balance / 1e9; // Convert lamports to SOL
             } catch (error) {
                 console.error("Error fetching wallet balance:", error);
                 return null;
@@ -174,7 +175,7 @@
         });
 
         updateData(); // Initial data fetch
-        setInterval(updateData, 3600000); // Fetch data every hour
+        setInterval(updateData, 300000); // Fetch data every 5 minutes
     </script>
 </body>
 </html>
